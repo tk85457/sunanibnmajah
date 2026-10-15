@@ -4,6 +4,9 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../theme/app_theme.dart';
+import '../../core/ads/ad_service.dart';
+import '../../core/services/in_app_review_service.dart';
+import '../../core/services/notification_service.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -80,15 +83,27 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     super.dispose();
   }
 
-  void _navigateToHome() async {
-    await Future.delayed(const Duration(milliseconds: 3500));
-    if (mounted) {
-      final prefs = await SharedPreferences.getInstance();
-      final onboardingDone = prefs.getBool('onboarding_done') ?? false;
-      if (mounted) {
-        context.go(onboardingDone ? '/home' : '/onboarding');
-      }
-    }
+  Future<void> _navigateToHome() async {
+    final results = await Future.wait([
+      Future.delayed(const Duration(milliseconds: 2500)),
+      SharedPreferences.getInstance(),
+      AdService.gatherConsentAndInitialize().timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          debugPrint('AdService.gatherConsentAndInitialize timed out on splash.');
+          return AdService.canRequestAds;
+        },
+      ),
+      InAppReviewService.recordAppOpen(),
+    ]);
+
+    // Fire-and-forget daily notifications init (no UI thread delay)
+    NotificationService.initialize();
+
+    if (!mounted) return;
+    final prefs = results[1] as SharedPreferences;
+    final onboardingDone = prefs.getBool('onboarding_done') ?? false;
+    context.go(onboardingDone ? '/home' : '/language-select');
   }
 
   @override
@@ -199,7 +214,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                                     // Removed white background to support new circular image with transparency
                                   ),
                                   child: Image.asset(
-                                    'assets/icon/icon.png',
+                                    'assets/icon/icon_circle.png',
                                     width: 152,
                                     height: 152,
                                     fit: BoxFit.contain, // Changed to contain for perfect fit
@@ -304,9 +319,9 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
               const SizedBox(height: 20),
 
-              // Version
+              // Version — kept in sync with pubspec.yaml version 1.4.3+8
               Text(
-                'v1.0.0',
+                'v1.4.3',
                 style: GoogleFonts.rubik(
                   fontSize: 11,
                   color: Colors.white.withValues(alpha: 0.35),

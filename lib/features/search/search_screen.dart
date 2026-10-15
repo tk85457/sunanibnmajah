@@ -8,6 +8,7 @@ import '../../data/repositories/hadith_repository.dart';
 import '../../domain/models/models.dart';
 import '../settings/settings_provider.dart';
 import '../collections/collections_screen.dart';
+import '../collections/collection_detail_screen.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
   const SearchScreen({super.key});
@@ -108,11 +109,13 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                       Expanded(
                         child: TextField(
                           controller: _controller,
-                          textAlign: TextAlign.right,
-                          textDirection: TextDirection.rtl,
+                          textAlign: _selectedLanguage == 'English' ? TextAlign.left : TextAlign.right,
+                          textDirection: _selectedLanguage == 'English' ? TextDirection.ltr : TextDirection.rtl,
                           onSubmitted: (_) => _performSearch(),
                           decoration: InputDecoration(
-                            hintText: 'مطلوب الفاظ یہاں ٹائپ کریں',
+                            hintText: _selectedLanguage == 'English'
+                                ? 'Type your search keywords here'
+                                : 'مطلوب الفاظ یہاں ٹائپ کریں',
                             hintStyle: TextStyle(color: isDark ? Colors.grey.shade500 : Colors.grey.shade400),
                             border: InputBorder.none,
                             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -501,6 +504,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                       onTap: () async {
                         final repo = ref.read(hadithRepositoryProvider);
                         await repo.addHadithToCollection(c.id, hadith.id);
+                        ref.invalidate(collectionHadithsProvider(c.id));
+                        ref.invalidate(collectionsProvider);
                         if (ctx.mounted) Navigator.pop(ctx);
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(

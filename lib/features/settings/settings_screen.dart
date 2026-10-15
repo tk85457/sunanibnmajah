@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../theme/app_theme.dart';
+import '../../core/services/in_app_review_service.dart';
+import '../../core/ads/ad_service.dart';
 import 'settings_provider.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -147,6 +149,65 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   fontSize: settings.englishFontSize,
                   color: AppTheme.getFontColor(settings.englishFontColor, isDark),
                 ),
+              ),
+            ]),
+
+            // ─── Support & Feedback Section ───
+            _buildSectionCard(isDark, 'Support & Feedback', [
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(
+                  Icons.star_rounded,
+                  color: Colors.amber,
+                  size: 28,
+                ),
+                title: Text(
+                  'Rate this App',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? Colors.grey.shade300 : AppTheme.textDark,
+                  ),
+                ),
+                subtitle: Text(
+                  'Rate us on Google Play to support the project',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                  ),
+                ),
+                trailing: const Icon(Icons.chevron_right, size: 20),
+                onTap: () async {
+                  await InAppReviewService.triggerManualReview(appName: 'Sunan Ibn Majah');
+                },
+              ),
+              const Divider(height: 1),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(
+                  Icons.privacy_tip_outlined,
+                  color: AppTheme.primaryGreen,
+                  size: 26,
+                ),
+                title: Text(
+                  'Ad Privacy Settings',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? Colors.grey.shade300 : AppTheme.textDark,
+                  ),
+                ),
+                subtitle: Text(
+                  'Update your consent and ad privacy choices',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                  ),
+                ),
+                trailing: const Icon(Icons.chevron_right, size: 20),
+                onTap: () async {
+                  await AdService.showPrivacyOptionsForm();
+                },
               ),
             ]),
           ],

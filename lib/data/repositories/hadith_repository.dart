@@ -3,7 +3,7 @@ import '../../domain/models/models.dart';
 import '../isar/isar_service.dart';
 import '../isar/isar_models.dart';
 import '../database/app_database.dart';
-import 'package:isar/isar.dart';
+import 'package:isar_community/isar.dart';
 
 final databaseProvider = Provider<AppDatabase>((ref) => AppDatabase.instance);
 final isarServiceProvider = Provider<IsarService>((ref) => IsarService.instance);
@@ -45,11 +45,14 @@ class HadithRepository {
   // --- Hadiths (paginated) ---
   Future<List<Hadith>> getHadithsByChapter(int chapterId, {int? limit, int offset = 0}) async {
     final db = await _db.database;
-    final result = await db.query('hadiths',
-      where: 'chapter_id = ?', whereArgs: [chapterId],
-      orderBy: 'hadith_number ASC',
-      limit: limit, offset: offset,
-    );
+    // Use raw query to ensure numeric ordering of hadith_number (stored as TEXT)
+    String sql = 'SELECT * FROM hadiths WHERE chapter_id = ? ORDER BY CAST(hadith_number AS INTEGER) ASC';
+    final args = <dynamic>[chapterId];
+    if (limit != null) {
+      sql += ' LIMIT ? OFFSET ?';
+      args.addAll([limit, offset]);
+    }
+    final result = await db.rawQuery(sql, args);
     return result.map((e) => Hadith.fromMap(e)).toList();
   }
 
@@ -77,7 +80,7 @@ class HadithRepository {
   Future<int> getHadithIndexWithinChapter(int chapterId, String hadithNumber) async {
     final db = await _db.database;
     final result = await db.rawQuery(
-      'SELECT COUNT(*) as c FROM hadiths WHERE chapter_id = ? AND CAST(hadith_number AS FLOAT) < CAST(? AS FLOAT)',
+      'SELECT COUNT(*) as c FROM hadiths WHERE chapter_id = ? AND CAST(hadith_number AS INTEGER) < CAST(? AS INTEGER)',
       [chapterId, hadithNumber]
     );
     return result.first['c'] as int;
@@ -99,7 +102,7 @@ class HadithRepository {
   Future<int> getHadithIndex(int chapterId, String hadithNumber) async {
     final db = await _db.database;
     final result = await db.rawQuery(
-      'SELECT COUNT(*) as c FROM hadiths WHERE chapter_id = ? AND CAST(hadith_number AS FLOAT) < CAST(? AS FLOAT)',
+      'SELECT COUNT(*) as c FROM hadiths WHERE chapter_id = ? AND CAST(hadith_number AS INTEGER) < CAST(? AS INTEGER)',
       [chapterId, hadithNumber]
     );
     return result.first['c'] as int;
@@ -286,6 +289,12 @@ class HadithRepository {
     if (existing.isEmpty) {
       await db.insert('collection_hadiths', {'collection_id': collectionId, 'hadith_id': hadithId});
     }
+  }
+
+  Future<void> removeHadithFromCollection(int collectionId, int hadithId) async {
+    final db = await _db.database;
+    await db.delete('collection_hadiths',
+      where: 'collection_id = ? AND hadith_id = ?', whereArgs: [collectionId, hadithId]);
   }
 
   Future<void> deleteCollection(int id) async {

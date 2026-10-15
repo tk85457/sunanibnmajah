@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../theme/app_theme.dart';
 import '../../data/repositories/hadith_repository.dart';
 import '../settings/settings_provider.dart';
+import '../collections/collections_screen.dart';
 import '../../domain/models/models.dart';
 
 final collectionDetailsProvider = FutureProvider.family<HadithCollection?, int>(
@@ -81,7 +82,55 @@ class CollectionDetailScreen extends ConsumerWidget {
             itemCount: hadiths.length,
             itemBuilder: (context, index) {
               final hadith = hadiths[index];
-              return InkWell(
+              return Dismissible(
+                key: Key('col_hadith_${hadith.id}'),
+                direction: DismissDirection.endToStart,
+                background: Container(
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.only(right: 20),
+                  margin: const EdgeInsets.only(bottom: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade400,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.delete_outline, color: Colors.white),
+                      SizedBox(width: 8),
+                      Text('Remove', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                ),
+                confirmDismiss: (_) async {
+                  return await showDialog<bool>(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      title: const Text('Remove Hadith?'),
+                      content: Text('Remove Hadith #${hadith.hadithNumber} from this collection?'),
+                      actions: [
+                        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                          onPressed: () => Navigator.pop(ctx, true),
+                          child: const Text('Remove'),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+                onDismissed: (_) async {
+                  final repo = ref.read(hadithRepositoryProvider);
+                  await repo.removeHadithFromCollection(collectionId, hadith.id);
+                  ref.invalidate(collectionHadithsProvider(collectionId));
+                  ref.invalidate(collectionsProvider);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Hadith #${hadith.hadithNumber} removed ✓')),
+                    );
+                  }
+                },
+                child: InkWell(
                 onTap: () async {
                   final repo = ref.read(hadithRepositoryProvider);
                   final hIndex = await repo.getHadithIndexWithinChapter(
@@ -137,10 +186,50 @@ class CollectionDetailScreen extends ConsumerWidget {
                               ),
                             ),
                           ),
-                          Icon(
-                            Icons.bookmark,
-                            color: Theme.of(context).primaryColor,
-                            size: 20,
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              InkWell(
+                                onTap: () async {
+                                  final confirmed = await showDialog<bool>(
+                                    context: context,
+                                    builder: (ctx) => AlertDialog(
+                                      title: const Text('Remove Hadith?'),
+                                      content: Text('Remove Hadith #${hadith.hadithNumber} from this collection?'),
+                                      actions: [
+                                        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                                        ElevatedButton(
+                                          style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                                          onPressed: () => Navigator.pop(ctx, true),
+                                          child: const Text('Remove'),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                  if (confirmed == true) {
+                                    final repo = ref.read(hadithRepositoryProvider);
+                                    await repo.removeHadithFromCollection(collectionId, hadith.id);
+                                    ref.invalidate(collectionHadithsProvider(collectionId));
+                                    ref.invalidate(collectionsProvider);
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(content: Text('Hadith #${hadith.hadithNumber} removed ✓')),
+                                      );
+                                    }
+                                  }
+                                },
+                                child: Padding(
+                                  padding: const EdgeInsets.all(4),
+                                  child: Icon(Icons.remove_circle_outline, color: Colors.red.shade400, size: 20),
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Icon(
+                                Icons.bookmark,
+                                color: Theme.of(context).primaryColor,
+                                size: 20,
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -174,6 +263,7 @@ class CollectionDetailScreen extends ConsumerWidget {
                     ],
                   ),
                 ),
+              ),
               ).animate().fadeIn(delay: (60 * index).ms).slideX(begin: 0.05, end: 0);
             },
           );

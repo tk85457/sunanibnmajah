@@ -160,8 +160,24 @@ class AppDatabase {
     await _createIndexes(db);
   }
 
+  /// Returns true if the core data table (hadiths) exists.
+  Future<bool> _dataTablesExist(Database db) async {
+    final result = await db.rawQuery(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name='hadiths'",
+    );
+    return result.isNotEmpty;
+  }
+
   /// Create user-data tables (these are added on top of the pre-built asset DB)
   Future<void> _onOpen(Database db) async {
+    final tablesExist = await _dataTablesExist(db);
+    if (!tablesExist) {
+      debugPrintError(
+        'Data tables not found (asset copy may have failed). '
+        'Creating schema from scratch.',
+      );
+      await _createDataTables(db);
+    }
     await _createUserTables(db);
     await _createIndexes(db);
     await db.execute('PRAGMA foreign_keys = ON');
